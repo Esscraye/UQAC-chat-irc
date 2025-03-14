@@ -1,0 +1,17 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copier uniquement les fichiers nécessaires pour Prisma
+COPY package.json package-lock.json* ./
+COPY prisma ./prisma
+
+# Installer les dépendances minimales
+RUN npm install --no-save prisma @prisma/client
+
+# Générer le client Prisma
+RUN npx prisma generate
+
+# Le conteneur exécutera la commande spécifiée dans docker-compose
+CMD ["echo", "DB initialization container is ready"]
+

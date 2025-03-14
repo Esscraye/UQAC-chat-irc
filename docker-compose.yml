@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # Service MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: irc-chat-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: irc_chat
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Service d'initialisation de la base de données
+  db-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.init
+    container_name: irc-chat-db-init
+    environment:
+      - DATABASE_URL=mysql://user:password@mysql:3306/irc_chat
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: npx prisma migrate deploy
+
+  # Service d'application Next.js
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irc-chat-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=mysql://user:password@mysql:3306/irc_chat
+      - NODE_ENV=production
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+volumes:
+  mysql-data:
+    driver: local
+
